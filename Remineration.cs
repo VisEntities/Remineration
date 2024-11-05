@@ -14,7 +14,7 @@ using UnityEngine;
 namespace Oxide.Plugins
 {
     [Info("Remineration", "VisEntities", "1.0.0")]
-    [Description(" ")]
+    [Description("Spawns additional ore nodes close to mined spots.")]
     public class Remineration : RustPlugin
     {
         #region Fields
