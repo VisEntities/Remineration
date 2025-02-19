@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Remineration", "VisEntities", "1.0.0")]
+    [Info("Remineration", "VisEntities", "1.0.2")]
     [Description("Spawns additional ore nodes close to mined spots.")]
     public class Remineration : RustPlugin
     {
@@ -188,10 +188,11 @@ namespace Oxide.Plugins
             {
                 Vector3 candidatePosition = TerrainUtil.GetRandomPositionAround(center, minSearchRadius, maxSearchRadius);
 
-                if (TerrainUtil.GetGroundInfo(candidatePosition, out RaycastHit hit, 5f, LAYER_GROUND)
+                if (TerrainUtil.GetGroundInfo(candidatePosition, out RaycastHit hit, 10f, LAYER_GROUND)
                     && !TerrainUtil.OnTopology(center, TerrainTopology.Enum.Road | TerrainTopology.Enum.Roadside | TerrainTopology.Enum.Rail | TerrainTopology.Enum.Railside)
                     && !TerrainUtil.HasEntityNearby(hit.point, _config.CheckRadiusForNearbyEntities, LAYER_ENTITIES | LAYER_PLAYERS)
-                    && !TerrainUtil.InWater(hit.point))
+                    && !TerrainUtil.InWater(hit.point)
+                    && !TerrainUtil.InNoBuildZone(hit.point, 1.5f))
                 {
                     position = hit.point;
                     rotation = Quaternion.FromToRotation(Vector3.up, hit.normal);
@@ -294,6 +295,11 @@ namespace Oxide.Plugins
 
                 Pool.FreeUnmanaged(ref colliders);
                 return result;
+            }
+
+            public static bool InNoBuildZone(Vector3 position, float radius)
+            {
+                return Physics.CheckSphere(position, radius, Layers.Mask.Prevent_Building);
             }
 
             public static bool HasEntityNearby(Vector3 position, float radius, LayerMask mask, string prefabName = null)
