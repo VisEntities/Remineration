@@ -13,7 +13,7 @@ using UnityEngine;
 
 namespace Oxide.Plugins
 {
-    [Info("Remineration", "VisEntities", "1.0.2")]
+    [Info("Remineration", "VisEntities", "1.0.3")]
     [Description("Spawns additional ore nodes close to mined spots.")]
     public class Remineration : RustPlugin
     {
@@ -147,7 +147,7 @@ namespace Oxide.Plugins
 
         #endregion Oxide Hooks
 
-        #region Ore Node Spwaning
+        #region Ore Spwaning
 
         private void ScheduleOreRespawn(BaseEntity oreNode)
         {
@@ -189,7 +189,9 @@ namespace Oxide.Plugins
                 Vector3 candidatePosition = TerrainUtil.GetRandomPositionAround(center, minSearchRadius, maxSearchRadius);
 
                 if (TerrainUtil.GetGroundInfo(candidatePosition, out RaycastHit hit, 10f, LAYER_GROUND)
-                    && !TerrainUtil.OnTopology(center, TerrainTopology.Enum.Road | TerrainTopology.Enum.Roadside | TerrainTopology.Enum.Rail | TerrainTopology.Enum.Railside)
+                    && !TerrainUtil.OnRoadOrRail(hit.point)
+                    && !TerrainUtil.InsideRock(hit.point, 1.5f)
+                    && !TerrainUtil.InRadTown(hit.point)
                     && !TerrainUtil.HasEntityNearby(hit.point, _config.CheckRadiusForNearbyEntities, LAYER_ENTITIES | LAYER_PLAYERS)
                     && !TerrainUtil.InWater(hit.point)
                     && !TerrainUtil.InNoBuildZone(hit.point, 1.5f))
@@ -213,9 +215,9 @@ namespace Oxide.Plugins
             return oreNode;
         }
 
-        #endregion Ore Node Spwaning
+        #endregion Ore Spwaning
 
-        #region Ore Node Prefab Path Construction
+        #region Ore Prefab Path Construction
 
         private string BuildOreNodePrefabPath(string originalPrefab)
         {
@@ -250,13 +252,20 @@ namespace Oxide.Plugins
             return null;
         }
 
-        #endregion Ore Node Prefab Path Construction
+        #endregion Ore Prefab Path Construction
 
         #region Helper Functions
 
-        private bool ChanceSucceeded(int percentage)
+        private static bool ChanceSucceeded(int percent)
         {
-            return Random.Range(0, 100) < percentage;
+            if (percent <= 0)
+                return false;
+
+            if (percent >= 100)
+                return true;
+
+            float roll = Random.Range(0f, 100f);
+            return roll < percent;
         }
 
         #endregion Helper Functions
@@ -295,6 +304,31 @@ namespace Oxide.Plugins
 
                 Pool.FreeUnmanaged(ref colliders);
                 return result;
+            }
+
+            public static bool OnRoadOrRail(Vector3 position)
+            {
+                var combinedTopology = TerrainTopology.Enum.Road | TerrainTopology.Enum.Roadside |
+                                   TerrainTopology.Enum.Rail | TerrainTopology.Enum.Railside;
+
+                return OnTopology(position, combinedTopology);
+            }
+
+            public static bool InRadTown(Vector3 position, bool shouldDisplayOnMap = false)
+            {
+                foreach (var monumentInfo in TerrainMeta.Path.Monuments)
+                {
+                    bool inBounds = monumentInfo.IsInBounds(position);
+
+                    bool hasLandMarker = true;
+                    if (shouldDisplayOnMap)
+                        hasLandMarker = monumentInfo.shouldDisplayOnMap;
+
+                    if (inBounds && hasLandMarker)
+                        return true;
+                }
+
+                return OnTopology(position, TerrainTopology.Enum.Monument);
             }
 
             public static bool InNoBuildZone(Vector3 position, float radius)
